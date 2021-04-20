@@ -74,6 +74,7 @@ void MainWindow::on_pushButton_open_clicked()
         m_port->setDataBits(ui->comboBox_databits->currentData().value<QSerialPort::DataBits>());
         m_port->setParity(ui->comboBox_parity->currentData().value<QSerialPort::Parity>());
         m_port->setStopBits(ui->comboBox_stopbits->currentData().value<QSerialPort::StopBits>());
+        m_port->setFlowControl(QSerialPort::HardwareControl);
 
         if (!m_port->open(QSerialPort::ReadWrite))
         {
@@ -121,6 +122,7 @@ void MainWindow::on_pushButton_send_clicked()
     else
     {
         QByteArray ba = ui->textEdit_send->toPlainText().toUtf8();
+        ba.append("\r");
         m_port->write(ba);
     }
 }
