@@ -1,9 +1,8 @@
-QT       += core gui
+QT       += core gui network serialport
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-CONFIG += serialport
-QMAKE_CXXFLAGS += -std=c++0x
+CONFIG += c++11
 
 DESTDIR += $$PWD/bin
 
