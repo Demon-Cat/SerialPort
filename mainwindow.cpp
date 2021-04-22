@@ -9,40 +9,43 @@ MainWindow::MainWindow(QWidget *parent)
     ui->setupUi(this);
 
     //
-    QList<QSerialPortInfo> infoList = QSerialPortInfo::availablePorts();
-    for (int i = 0; i < infoList.size(); ++i)
+    QList<QextPortInfo> infos = QextSerialEnumerator::getPorts();
+    for (int i = 0; i < infos.size(); ++i)
     {
-        ui->comboBox_port->addItem(infoList.at(i).portName());
+        const QextPortInfo &info = infos.at(i);
+        ui->comboBox_port->addItem(info.portName);
     }
 
-    ui->comboBox_baudrate->addItem("1200", QSerialPort::Baud1200);
-    ui->comboBox_baudrate->addItem("2400", QSerialPort::Baud2400);
-    ui->comboBox_baudrate->addItem("4800", QSerialPort::Baud4800);
-    ui->comboBox_baudrate->addItem("9600", QSerialPort::Baud9600);
-    ui->comboBox_baudrate->addItem("19200", QSerialPort::Baud19200);
-    ui->comboBox_baudrate->addItem("38400", QSerialPort::Baud38400);
-    ui->comboBox_baudrate->addItem("57600", QSerialPort::Baud57600);
-    ui->comboBox_baudrate->addItem("115200", QSerialPort::Baud115200);
+    ui->comboBox_baudrate->addItem("1200", 1200);
+    ui->comboBox_baudrate->addItem("2400", 2400);
+    ui->comboBox_baudrate->addItem("4800", 4800);
+    ui->comboBox_baudrate->addItem("9600", 9600);
+    ui->comboBox_baudrate->addItem("19200", 19200);
+    ui->comboBox_baudrate->addItem("38400", 38400);
+    ui->comboBox_baudrate->addItem("57600", 57600);
+    ui->comboBox_baudrate->addItem("115200", 115200);
     ui->comboBox_baudrate->setCurrentIndex(3);
 
-    ui->comboBox_databits->addItem("5", QSerialPort::Data5);
-    ui->comboBox_databits->addItem("6", QSerialPort::Data6);
-    ui->comboBox_databits->addItem("7", QSerialPort::Data7);
-    ui->comboBox_databits->addItem("8", QSerialPort::Data8);
+    ui->comboBox_databits->addItem("5", 5);
+    ui->comboBox_databits->addItem("6", 6);
+    ui->comboBox_databits->addItem("7", 7);
+    ui->comboBox_databits->addItem("8", 8);
     ui->comboBox_databits->setCurrentIndex(3);
 
-    ui->comboBox_parity->addItem("NoParity", QSerialPort::NoParity);
-    ui->comboBox_parity->addItem("EvenParity", QSerialPort::EvenParity);
-    ui->comboBox_parity->addItem("OddParity", QSerialPort::OddParity);
+    ui->comboBox_parity->addItem("None", PAR_NONE);
+    ui->comboBox_parity->addItem("Odd", PAR_ODD);
+    ui->comboBox_parity->addItem("Even", PAR_EVEN);
+    ui->comboBox_parity->addItem("Mark", PAR_MARK);
+    ui->comboBox_parity->addItem("Space", PAR_SPACE);
     ui->comboBox_parity->setCurrentIndex(0);
 
-    ui->comboBox_stopbits->addItem("OneStop", QSerialPort::OneStop);
-    ui->comboBox_stopbits->addItem("OneAndHalfStop", QSerialPort::OneAndHalfStop);
-    ui->comboBox_stopbits->addItem("TwoStop", QSerialPort::TwoStop);
+    ui->comboBox_stopbits->addItem("1", STOP_1);
+    ui->comboBox_stopbits->addItem("1.5", STOP_1_5);
+    ui->comboBox_stopbits->addItem("2", STOP_2);
     ui->comboBox_stopbits->setCurrentIndex(0);
 
-    m_port = new QSerialPort(this);
-    connect(m_port, &QSerialPort::readyRead, this, &MainWindow::onReadyRead);
+    m_port = new QextSerialPort(QextSerialPort::EventDriven, this);
+    connect(m_port, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
 }
 
 MainWindow::~MainWindow()
@@ -64,19 +67,17 @@ void MainWindow::onReadyRead()
     }
 }
 
-
 void MainWindow::on_pushButton_open_clicked()
 {
     if (ui->pushButton_open->text() == "打开")
     {
         m_port->setPortName(ui->comboBox_port->currentText());
-        m_port->setBaudRate(ui->comboBox_baudrate->currentData().value<QSerialPort::BaudRate>());
-        m_port->setDataBits(ui->comboBox_databits->currentData().value<QSerialPort::DataBits>());
-        m_port->setParity(ui->comboBox_parity->currentData().value<QSerialPort::Parity>());
-        m_port->setStopBits(ui->comboBox_stopbits->currentData().value<QSerialPort::StopBits>());
-        m_port->setFlowControl(QSerialPort::HardwareControl);
+        m_port->setBaudRate(BaudRateType(ui->comboBox_baudrate->itemData(ui->comboBox_baudrate->currentIndex()).toInt()));
+        m_port->setDataBits(DataBitsType(ui->comboBox_databits->itemData(ui->comboBox_databits->currentIndex()).toInt()));
+        m_port->setParity(ParityType(ui->comboBox_parity->itemData(ui->comboBox_parity->currentIndex()).toInt()));
+        m_port->setStopBits(StopBitsType(ui->comboBox_stopbits->itemData(ui->comboBox_stopbits->currentIndex()).toInt()));
 
-        if (!m_port->open(QSerialPort::ReadWrite))
+        if (!m_port->open(QextSerialPort::ReadWrite))
         {
             QMessageBox::warning(this, QString("警告"), QString("打开失败：%1").arg(m_port->errorString()));
             return;

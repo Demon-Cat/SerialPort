@@ -2,8 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QSerialPort>
-#include <QSerialPortInfo>
+#include "qextserialport.h"
+#include "qextserialenumerator.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -21,16 +21,14 @@ private slots:
     void onReadyRead();
 
     void on_pushButton_open_clicked();
-
     void on_pushButton_clear_receive_clicked();
 
     void on_pushButton_clear_send_clicked();
-
     void on_pushButton_send_clicked();
 
 private:
     Ui::MainWindow *ui;
 
-    QSerialPort *m_port = nullptr;
+    QextSerialPort *m_port = nullptr;
 };
 #endif // MAINWINDOW_H
