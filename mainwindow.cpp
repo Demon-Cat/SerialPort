@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QMessageBox>
+#include <QBuffer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -43,6 +44,10 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_port = new QSerialPort(this);
     connect(m_port, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+
+    //
+    m_networkManager = new QNetworkAccessManager(this);
+    connect(m_networkManager, SIGNAL(finished(QNetworkReply*)), this, SLOT(onNetworkFinished(QNetworkReply*)));
 }
 
 MainWindow::~MainWindow()
@@ -64,6 +69,11 @@ void MainWindow::onReadyRead()
     }
 }
 
+void MainWindow::onNetworkFinished(QNetworkReply *reply)
+{
+    qDebug() << reply->readAll();
+    reply->deleteLater();
+}
 
 void MainWindow::on_pushButton_open_clicked()
 {
@@ -124,4 +134,35 @@ void MainWindow::on_pushButton_send_clicked()
         ba.append("\r");
         m_port->write(ba);
     }
+}
+
+void MainWindow::on_pushButton_clicked()
+{
+    QSslConfiguration config;
+    config.setPeerVerifyMode(QSslSocket::VerifyNone);
+    config.setProtocol(QSsl::TlsV1);
+
+    QNetworkRequest request;
+    request.setSslConfiguration(config);
+
+    //image
+    QImage image("F:/Qt/SerialPort/bin/0.png");
+    QByteArray imageData;
+    QBuffer buffer(&imageData);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "JPG");
+    QString base64 = imageData.toBase64();
+    QString md5 = QCryptographicHash::hash(imageData, QCryptographicHash::Md5).toHex();
+    QString imageMsg = QString(R"({"msgtype":"image","image":{"base64":"%1","md5":"%2"}})").arg(base64).arg(md5);
+
+    //text
+    QString textMsg = ui->textEdit_send->toPlainText().toUtf8();
+
+    //markdown
+    QString markdownMsg = QString(R"({"msgtype":"markdown","markdown":{"content":"设备异常\n>ip:<font color=\"comment\">192.168.1.1</font> \n>机型:<font color=\"comment\">8064</font>"}})");
+
+    request.setUrl(QUrl("https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=79f5d376-a8b8-4038-98c3-45686e84942c"));
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/json"));
+
+    m_networkManager->post(request, markdownMsg.toUtf8());
 }

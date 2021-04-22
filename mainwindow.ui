@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>NVR串口调试</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
@@ -113,7 +113,14 @@
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
-          <widget class="QTextEdit" name="textEdit_receive"/>
+          <widget class="QTextEdit" name="textEdit_receive">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+           <property name="acceptRichText">
+            <bool>false</bool>
+           </property>
+          </widget>
          </item>
          <item>
           <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -156,7 +163,11 @@
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout_2">
          <item>
-          <widget class="QTextEdit" name="textEdit_send"/>
+          <widget class="QTextEdit" name="textEdit_send">
+           <property name="acceptRichText">
+            <bool>false</bool>
+           </property>
+          </widget>
          </item>
          <item>
           <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -191,6 +202,13 @@
             <widget class="QPushButton" name="pushButton_send">
              <property name="text">
               <string>发送</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="pushButton">
+             <property name="text">
+              <string>PushButton</string>
              </property>
             </widget>
            </item>
