@@ -42,7 +42,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->comboBox_stopbits->setCurrentIndex(0);
 
     m_port = new QSerialPort(this);
-    connect(m_port, &QSerialPort::readyRead, this, &MainWindow::onReadyRead);
+    connect(m_port, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
 }
 
 MainWindow::~MainWindow()
@@ -70,11 +70,10 @@ void MainWindow::on_pushButton_open_clicked()
     if (ui->pushButton_open->text() == "打开")
     {
         m_port->setPortName(ui->comboBox_port->currentText());
-        m_port->setBaudRate(ui->comboBox_baudrate->currentData().value<QSerialPort::BaudRate>());
-        m_port->setDataBits(ui->comboBox_databits->currentData().value<QSerialPort::DataBits>());
-        m_port->setParity(ui->comboBox_parity->currentData().value<QSerialPort::Parity>());
-        m_port->setStopBits(ui->comboBox_stopbits->currentData().value<QSerialPort::StopBits>());
-        m_port->setFlowControl(QSerialPort::HardwareControl);
+        m_port->setBaudRate(ui->comboBox_baudrate->itemData(ui->comboBox_baudrate->currentIndex()).toInt());
+        m_port->setDataBits(QSerialPort::DataBits(ui->comboBox_databits->itemData(ui->comboBox_databits->currentIndex()).toInt()));
+        m_port->setParity(QSerialPort::Parity(ui->comboBox_parity->itemData(ui->comboBox_parity->currentIndex()).toInt()));
+        m_port->setStopBits(QSerialPort::StopBits(ui->comboBox_stopbits->itemData(ui->comboBox_stopbits->currentIndex()).toInt()));
 
         if (!m_port->open(QSerialPort::ReadWrite))
         {
