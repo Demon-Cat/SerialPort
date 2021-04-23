@@ -2,13 +2,15 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QtSerialPort/QSerialPort>
-#include <QtSerialPort/QSerialPortInfo>
+
+#include "WSerialPort/WzSerialPort.h"
 
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QSslConfiguration>
+
+#include <QTimer>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -37,7 +39,8 @@ private slots:
 private:
     Ui::MainWindow *ui;
 
-    QSerialPort *m_port = nullptr;
+    QTimer *m_timerRead = nullptr;
+    WzSerialPort *m_port = nullptr;
 
     QNetworkAccessManager *m_networkManager = nullptr;
 };

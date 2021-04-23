@@ -9,41 +9,10 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    //
-    QList<QSerialPortInfo> infoList = QSerialPortInfo::availablePorts();
-    for (int i = 0; i < infoList.size(); ++i)
-    {
-        ui->comboBox_port->addItem(infoList.at(i).portName());
-    }
+    m_port = new WzSerialPort();
 
-    ui->comboBox_baudrate->addItem("1200", QSerialPort::Baud1200);
-    ui->comboBox_baudrate->addItem("2400", QSerialPort::Baud2400);
-    ui->comboBox_baudrate->addItem("4800", QSerialPort::Baud4800);
-    ui->comboBox_baudrate->addItem("9600", QSerialPort::Baud9600);
-    ui->comboBox_baudrate->addItem("19200", QSerialPort::Baud19200);
-    ui->comboBox_baudrate->addItem("38400", QSerialPort::Baud38400);
-    ui->comboBox_baudrate->addItem("57600", QSerialPort::Baud57600);
-    ui->comboBox_baudrate->addItem("115200", QSerialPort::Baud115200);
-    ui->comboBox_baudrate->setCurrentIndex(3);
-
-    ui->comboBox_databits->addItem("5", QSerialPort::Data5);
-    ui->comboBox_databits->addItem("6", QSerialPort::Data6);
-    ui->comboBox_databits->addItem("7", QSerialPort::Data7);
-    ui->comboBox_databits->addItem("8", QSerialPort::Data8);
-    ui->comboBox_databits->setCurrentIndex(3);
-
-    ui->comboBox_parity->addItem("NoParity", QSerialPort::NoParity);
-    ui->comboBox_parity->addItem("EvenParity", QSerialPort::EvenParity);
-    ui->comboBox_parity->addItem("OddParity", QSerialPort::OddParity);
-    ui->comboBox_parity->setCurrentIndex(0);
-
-    ui->comboBox_stopbits->addItem("OneStop", QSerialPort::OneStop);
-    ui->comboBox_stopbits->addItem("OneAndHalfStop", QSerialPort::OneAndHalfStop);
-    ui->comboBox_stopbits->addItem("TwoStop", QSerialPort::TwoStop);
-    ui->comboBox_stopbits->setCurrentIndex(0);
-
-    m_port = new QSerialPort(this);
-    connect(m_port, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+    m_timerRead = new QTimer(this);
+    connect(m_timerRead, SIGNAL(timeout()), this, SLOT(onReadyRead()));
 
     //
     m_networkManager = new QNetworkAccessManager(this);
@@ -57,16 +26,11 @@ MainWindow::~MainWindow()
 
 void MainWindow::onReadyRead()
 {
-    QByteArray ba = m_port->readAll();
+    char buf[1024];
+    memset(buf, 0, sizeof(buf));
+    m_port->receive(buf, 1024);
 
-    if (ui->checkBox_receive_hex->isChecked())
-    {
-        ui->textEdit_receive->append(ba.toHex().toUpper());
-    }
-    else
-    {
-        ui->textEdit_receive->append(ba);
-    }
+    ui->textEdit_receive->append(QString(buf));
 }
 
 void MainWindow::onNetworkFinished(QNetworkReply *reply)
@@ -79,15 +43,11 @@ void MainWindow::on_pushButton_open_clicked()
 {
     if (ui->pushButton_open->text() == "打开")
     {
-        m_port->setPortName(ui->comboBox_port->currentText());
-        m_port->setBaudRate(ui->comboBox_baudrate->itemData(ui->comboBox_baudrate->currentIndex()).toInt());
-        m_port->setDataBits(QSerialPort::DataBits(ui->comboBox_databits->itemData(ui->comboBox_databits->currentIndex()).toInt()));
-        m_port->setParity(QSerialPort::Parity(ui->comboBox_parity->itemData(ui->comboBox_parity->currentIndex()).toInt()));
-        m_port->setStopBits(QSerialPort::StopBits(ui->comboBox_stopbits->itemData(ui->comboBox_stopbits->currentIndex()).toInt()));
+        int ok = m_port->open("COM3", 115200, 0, 8, 1);
 
-        if (!m_port->open(QSerialPort::ReadWrite))
+        if (!ok)
         {
-            QMessageBox::warning(this, QString("警告"), QString("打开失败：%1").arg(m_port->errorString()));
+            QMessageBox::warning(this, QString("警告"), QString("打开失败。"));
             return;
         }
 
@@ -108,6 +68,8 @@ void MainWindow::on_pushButton_open_clicked()
         ui->comboBox_parity->setEnabled(true);
         ui->comboBox_stopbits->setEnabled(true);
         ui->pushButton_open->setText("打开");
+
+        m_timerRead->stop();
     }
 }
 
@@ -123,24 +85,18 @@ void MainWindow::on_pushButton_clear_send_clicked()
 
 void MainWindow::on_pushButton_send_clicked()
 {
-    if (ui->checkBox_send_hex->isChecked())
-    {
-        QByteArray ba = QByteArray::fromHex(ui->textEdit_send->toPlainText().toLatin1());
-        m_port->write(ba);
-    }
-    else
-    {
-        QByteArray ba = ui->textEdit_send->toPlainText().toUtf8();
-        ba.append("\r");
-        m_port->write(ba);
-    }
+    QByteArray ba = ui->textEdit_send->toPlainText().toUtf8();
+    ba.append("\r");
+    m_port->send(ba.data(), ba.size());
 }
 
 void MainWindow::on_pushButton_clicked()
 {
+    m_timerRead->start(100);
+    return;
     QSslConfiguration config;
     config.setPeerVerifyMode(QSslSocket::VerifyNone);
-    config.setProtocol(QSsl::TlsV1);
+    config.setProtocol(QSsl::TlsV1_1);
 
     QNetworkRequest request;
     request.setSslConfiguration(config);
