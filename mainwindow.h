@@ -23,6 +23,7 @@ public:
     ~MainWindow();
 
 private slots:
+    void onSerialPortErrorOccurred(QSerialPort::SerialPortError error);
     void onReadyRead();
 
     void onNetworkFinished(QNetworkReply *reply);

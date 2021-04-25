@@ -2,6 +2,7 @@
 #include "ui_mainwindow.h"
 #include <QMessageBox>
 #include <QBuffer>
+#include <QtDebug>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -24,7 +25,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->comboBox_baudrate->addItem("38400", QSerialPort::Baud38400);
     ui->comboBox_baudrate->addItem("57600", QSerialPort::Baud57600);
     ui->comboBox_baudrate->addItem("115200", QSerialPort::Baud115200);
-    ui->comboBox_baudrate->setCurrentIndex(3);
+    ui->comboBox_baudrate->setCurrentIndex(7);
 
     ui->comboBox_databits->addItem("5", QSerialPort::Data5);
     ui->comboBox_databits->addItem("6", QSerialPort::Data6);
@@ -43,6 +44,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->comboBox_stopbits->setCurrentIndex(0);
 
     m_port = new QSerialPort(this);
+    connect(m_port, &QSerialPort::errorOccurred, this, &MainWindow::onSerialPortErrorOccurred);
     connect(m_port, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
 
     //
@@ -53,6 +55,11 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
+}
+
+void MainWindow::onSerialPortErrorOccurred(QSerialPort::SerialPortError error)
+{
+    qDebug() << error;
 }
 
 void MainWindow::onReadyRead()
