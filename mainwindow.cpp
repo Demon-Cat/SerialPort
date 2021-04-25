@@ -44,7 +44,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->comboBox_stopbits->addItem("2", STOP_2);
     ui->comboBox_stopbits->setCurrentIndex(0);
 
-    m_port = new QextSerialPort(QextSerialPort::EventDriven, this);
+    m_port = new QextSerialPort(QextSerialPort::Polling, this);
     connect(m_port, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
 }
 
@@ -76,6 +76,7 @@ void MainWindow::on_pushButton_open_clicked()
         m_port->setDataBits(DataBitsType(ui->comboBox_databits->itemData(ui->comboBox_databits->currentIndex()).toInt()));
         m_port->setParity(ParityType(ui->comboBox_parity->itemData(ui->comboBox_parity->currentIndex()).toInt()));
         m_port->setStopBits(StopBitsType(ui->comboBox_stopbits->itemData(ui->comboBox_stopbits->currentIndex()).toInt()));
+        m_port->setTimeout(100);
 
         if (!m_port->open(QextSerialPort::ReadWrite))
         {
@@ -126,4 +127,9 @@ void MainWindow::on_pushButton_send_clicked()
         ba.append("\r");
         m_port->write(ba);
     }
+}
+
+void MainWindow::on_pushButton_clicked()
+{
+    onReadyRead();
 }

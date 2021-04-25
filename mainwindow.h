@@ -26,6 +26,8 @@ private slots:
     void on_pushButton_clear_send_clicked();
     void on_pushButton_send_clicked();
 
+    void on_pushButton_clicked();
+
 private:
     Ui::MainWindow *ui;
 
