@@ -3,7 +3,6 @@ QT       += core gui network
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
 CONFIG += serialport
-QMAKE_CXXFLAGS += -std=c++0x
 
 DESTDIR += $$PWD/bin
 
@@ -18,13 +17,13 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-include($$PWD/WSerialPort/WSerialPort.pri)
-
 SOURCES += \
+    SerialPort.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
+    SerialPort.hpp \
     mainwindow.h
 
 FORMS += \

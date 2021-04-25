@@ -3,7 +3,7 @@
 
 #include <QMainWindow>
 
-#include "WSerialPort/WzSerialPort.h"
+#include "SerialPort.hpp"
 
 #include <QNetworkAccessManager>
 #include <QNetworkRequest>
@@ -40,7 +40,7 @@ private:
     Ui::MainWindow *ui;
 
     QTimer *m_timerRead = nullptr;
-    WzSerialPort *m_port = nullptr;
+    SerialPort *m_port = nullptr;
 
     QNetworkAccessManager *m_networkManager = nullptr;
 };
