@@ -23,15 +23,25 @@
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
         <layout class="QGridLayout" name="gridLayout">
+         <item row="1" column="1">
+          <widget class="QComboBox" name="comboBox_baudrate"/>
+         </item>
+         <item row="2" column="1">
+          <widget class="QComboBox" name="comboBox_databits"/>
+         </item>
+         <item row="6" column="1">
+          <widget class="QPushButton" name="pushButton_open">
+           <property name="text">
+            <string>打开</string>
+           </property>
+          </widget>
+         </item>
          <item row="0" column="0">
           <widget class="QLabel" name="label">
            <property name="text">
             <string>串口号：</string>
            </property>
           </widget>
-         </item>
-         <item row="0" column="1">
-          <widget class="QComboBox" name="comboBox_port"/>
          </item>
          <item row="1" column="0">
           <widget class="QLabel" name="label_2">
@@ -40,9 +50,6 @@
            </property>
           </widget>
          </item>
-         <item row="1" column="1">
-          <widget class="QComboBox" name="comboBox_baudrate"/>
-         </item>
          <item row="2" column="0">
           <widget class="QLabel" name="label_3">
            <property name="text">
@@ -50,8 +57,8 @@
            </property>
           </widget>
          </item>
-         <item row="2" column="1">
-          <widget class="QComboBox" name="comboBox_databits"/>
+         <item row="4" column="1">
+          <widget class="QComboBox" name="comboBox_stopbits"/>
          </item>
          <item row="3" column="0">
           <widget class="QLabel" name="label_4">
@@ -63,6 +70,9 @@
          <item row="3" column="1">
           <widget class="QComboBox" name="comboBox_parity"/>
          </item>
+         <item row="0" column="1">
+          <widget class="QComboBox" name="comboBox_port"/>
+         </item>
          <item row="4" column="0">
           <widget class="QLabel" name="label_5">
            <property name="text">
@@ -70,15 +80,15 @@
            </property>
           </widget>
          </item>
-         <item row="4" column="1">
-          <widget class="QComboBox" name="comboBox_stopbits"/>
-         </item>
-         <item row="5" column="1">
-          <widget class="QPushButton" name="pushButton_open">
+         <item row="5" column="0">
+          <widget class="QLabel" name="label_6">
            <property name="text">
-            <string>打开</string>
+            <string>流控：</string>
            </property>
           </widget>
+         </item>
+         <item row="5" column="1">
+          <widget class="QComboBox" name="comboBoxFlowControl"/>
          </item>
         </layout>
        </item>
@@ -113,14 +123,7 @@
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
-          <widget class="QTextEdit" name="textEdit_receive">
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-           <property name="acceptRichText">
-            <bool>false</bool>
-           </property>
-          </widget>
+          <widget class="OutputTextEdit" name="plainTextEdit_receive"/>
          </item>
          <item>
           <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -163,11 +166,7 @@
         </property>
         <layout class="QHBoxLayout" name="horizontalLayout_2">
          <item>
-          <widget class="QTextEdit" name="textEdit_send">
-           <property name="acceptRichText">
-            <bool>false</bool>
-           </property>
-          </widget>
+          <widget class="QPlainTextEdit" name="plainTextEdit_send"/>
          </item>
          <item>
           <layout class="QVBoxLayout" name="verticalLayout_4">
@@ -233,6 +232,13 @@
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>OutputTextEdit</class>
+   <extends>QPlainTextEdit</extends>
+   <header>OutputTextEdit.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

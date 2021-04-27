@@ -22,9 +22,13 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+private:
+    quint64 writeSerialPort(const QByteArray &data);
+
 private slots:
     void onSerialPortErrorOccurred(QSerialPort::SerialPortError error);
     void onReadyRead();
+    void onOutputTextEditInput(const QByteArray &data);
 
     void onNetworkFinished(QNetworkReply *reply);
 
