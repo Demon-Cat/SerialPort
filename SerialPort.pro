@@ -20,16 +20,26 @@ DEFINES += QT_DEPRECATED_WARNINGS
 include($$PWD/OutputWindow/OutputWindow.pri)
 
 SOURCES += \
+    SerialPortSetting.cpp \
+    Settings.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
+    SerialPortSetting.h \
+    Settings.h \
     mainwindow.h
 
 FORMS += \
+    SerialPortSetting.ui \
     mainwindow.ui
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+RESOURCES += \
+    resource.qrc
+
+RC_FILE += icon.rc

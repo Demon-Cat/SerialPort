@@ -6,43 +6,48 @@
 #include <QSerialPortInfo>
 
 #include <QNetworkAccessManager>
-#include <QNetworkRequest>
 #include <QNetworkReply>
+#include <QNetworkRequest>
 #include <QSslConfiguration>
 
+class SerialPortSetting;
+
 QT_BEGIN_NAMESPACE
-namespace Ui { class MainWindow; }
+namespace Ui {
+class MainWindow;
+}
 QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow
-{
+class MainWindow : public QMainWindow {
     Q_OBJECT
 
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    void closeEvent(QCloseEvent *event) override;
+
 private:
     quint64 writeSerialPort(const QByteArray &data);
 
 private slots:
+    void onSerialPortOpenClicked();
     void onSerialPortErrorOccurred(QSerialPort::SerialPortError error);
     void onReadyRead();
     void onOutputTextEditInput(const QByteArray &data);
+    void onInputTextEditEnterPressed();
 
     void onNetworkFinished(QNetworkReply *reply);
 
-    void on_pushButton_open_clicked();
-    void on_pushButton_clear_receive_clicked();
-    void on_pushButton_clear_send_clicked();
-    void on_pushButton_send_clicked();
-
-    void on_pushButton_clicked();
+    void on_actionConnect_triggered();
+    void on_actionDisconnect_triggered();
 
 private:
     Ui::MainWindow *ui;
 
-    QSerialPort *m_port = nullptr;
+    SerialPortSetting *m_serialPortSetting = nullptr;
+    QSerialPort *m_serialPort = nullptr;
 
     QNetworkAccessManager *m_networkManager = nullptr;
 };

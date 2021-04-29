@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "SerialPortSetting.h"
+#include "Settings.h"
 #include <QBuffer>
 #include <QMessageBox>
 #include <QtDebug>
@@ -10,66 +12,59 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    //
-    QList<QSerialPortInfo> infoList = QSerialPortInfo::availablePorts();
-    for (int i = 0; i < infoList.size(); ++i) {
-        ui->comboBox_port->addItem(infoList.at(i).portName());
-    }
+    m_serialPortSetting = new SerialPortSetting(this);
+    connect(m_serialPortSetting, &SerialPortSetting::openClicked, this, &MainWindow::onSerialPortOpenClicked);
 
-    ui->comboBox_baudrate->addItem("1200", QSerialPort::Baud1200);
-    ui->comboBox_baudrate->addItem("2400", QSerialPort::Baud2400);
-    ui->comboBox_baudrate->addItem("4800", QSerialPort::Baud4800);
-    ui->comboBox_baudrate->addItem("9600", QSerialPort::Baud9600);
-    ui->comboBox_baudrate->addItem("19200", QSerialPort::Baud19200);
-    ui->comboBox_baudrate->addItem("38400", QSerialPort::Baud38400);
-    ui->comboBox_baudrate->addItem("57600", QSerialPort::Baud57600);
-    ui->comboBox_baudrate->addItem("115200", QSerialPort::Baud115200);
-    ui->comboBox_baudrate->setCurrentIndex(7);
+    m_serialPort = new QSerialPort(this);
+    connect(m_serialPort, &QSerialPort::errorOccurred, this, &MainWindow::onSerialPortErrorOccurred);
+    connect(m_serialPort, &QSerialPort::readyRead, this, &MainWindow::onReadyRead);
 
-    ui->comboBox_databits->addItem("5", QSerialPort::Data5);
-    ui->comboBox_databits->addItem("6", QSerialPort::Data6);
-    ui->comboBox_databits->addItem("7", QSerialPort::Data7);
-    ui->comboBox_databits->addItem("8", QSerialPort::Data8);
-    ui->comboBox_databits->setCurrentIndex(3);
+    connect(ui->plainTextEditReceive, &OutputTextEdit::getData, this, &MainWindow::onOutputTextEditInput);
+    connect(ui->plainTextEditSend, &InputTextEdit::enterPressed, this, &MainWindow::onInputTextEditEnterPressed);
 
-    ui->comboBox_parity->addItem("NoParity", QSerialPort::NoParity);
-    ui->comboBox_parity->addItem("EvenParity", QSerialPort::EvenParity);
-    ui->comboBox_parity->addItem("OddParity", QSerialPort::OddParity);
-    ui->comboBox_parity->setCurrentIndex(0);
+    QFont font("Source Code Pro", 9);
+    ui->plainTextEditReceive->setFont(font);
+    ui->plainTextEditSend->setFont(font);
 
-    ui->comboBox_stopbits->addItem("OneStop", QSerialPort::OneStop);
-    ui->comboBox_stopbits->addItem("OneAndHalfStop", QSerialPort::OneAndHalfStop);
-    ui->comboBox_stopbits->addItem("TwoStop", QSerialPort::TwoStop);
-    ui->comboBox_stopbits->setCurrentIndex(0);
-
-    ui->comboBoxFlowControl->addItem("No", QSerialPort::NoFlowControl);
-    ui->comboBoxFlowControl->addItem("RTS/CTS", QSerialPort::HardwareControl);
-    ui->comboBoxFlowControl->addItem("XON/XOFF", QSerialPort::SoftwareControl);
-
-    m_port = new QSerialPort(this);
-    connect(m_port, &QSerialPort::errorOccurred, this, &MainWindow::onSerialPortErrorOccurred);
-    connect(m_port, &QSerialPort::readyRead, this, &MainWindow::onReadyRead);
-
-    connect(ui->plainTextEdit_receive, &OutputTextEdit::getData, this, &MainWindow::onOutputTextEditInput);
+    ui->splitter->restoreState(gSettings->splitterState());
 
     //
     m_networkManager = new QNetworkAccessManager(this);
     connect(m_networkManager, &QNetworkAccessManager::finished, this, &MainWindow::onNetworkFinished);
+
+    ui->actionConnect->setEnabled(true);
+    ui->actionDisconnect->setEnabled(false);
+
+    if (gSettings->isMaximized()) {
+        showMaximized();
+    }
 }
 
 MainWindow::~MainWindow()
 {
     delete ui;
+
+    delete Settings::instance();
+}
+
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (QMessageBox::No == QMessageBox::question(this, "提示", "确定要退出吗？")) {
+        event->ignore();
+        return;
+    }
+
+    gSettings->saveSplitterState(ui->splitter->saveState());
+    gSettings->saveMaximized(isMaximized());
 }
 
 quint64 MainWindow::writeSerialPort(const QByteArray &data)
 {
-    //BUG 有时不打开流控会有乱码，但是打开流控发送数据又有问题，会把串口搞死掉
-    //这里先不发送
-    if (m_port->flowControl() != QSerialPort::NoFlowControl) {
+    if (!m_serialPort->isOpen()) {
         return 0;
     }
-    return m_port->write(data);
+
+    return m_serialPort->write(data);
 }
 
 void MainWindow::onSerialPortErrorOccurred(QSerialPort::SerialPortError error)
@@ -79,18 +74,59 @@ void MainWindow::onSerialPortErrorOccurred(QSerialPort::SerialPortError error)
 
 void MainWindow::onReadyRead()
 {
-    QByteArray ba = m_port->readAll();
-
-    if (ui->checkBox_receive_hex->isChecked()) {
-        ui->plainTextEdit_receive->appendPlainText(ba.toHex().toUpper());
-    } else {
-        ui->plainTextEdit_receive->appendMessage(ba);
+    QByteArray data = m_serialPort->readAll();
+    if (data.isEmpty()) {
+        return;
     }
+
+    if (data.startsWith("\a")) {
+        return;
+    }
+
+    //退格
+    if (data.startsWith("\b")) {
+        //左移动光标
+        if (data.size() == 1) {
+            ui->plainTextEditReceive->movePosition(QTextCursor::Left);
+            return;
+        }
+        //退格，光标在最后，如果收到081B5B4A，则执行退格操作
+        if (data.at(1) == 0x1b) {
+            ui->plainTextEditReceive->deletePreviousChar();
+            return;
+        }
+        //退格，光标不在最后，删除光标位置和之后的所有字符，串口会发送回来多删除的字符
+        if (data.at(1) != 0x1b) {
+            ui->plainTextEditReceive->deleteAfterChars();
+            int end = data.indexOf(0x1b);
+            QByteArray ba = data.mid(1, end - 1);
+            ui->plainTextEditReceive->insertMessage(ba, true);
+            return;
+        }
+    }
+
+    //右移动光标，会收到字符，从当前光标位置覆盖
+    if (data.size() == 1) {
+        ui->plainTextEditReceive->overwriteMessage(data);
+        return;
+    }
+
+    //
+    ui->plainTextEditReceive->appendMessage(data);
 }
 
 void MainWindow::onOutputTextEditInput(const QByteArray &data)
 {
     writeSerialPort(data);
+}
+
+void MainWindow::onInputTextEditEnterPressed()
+{
+    QByteArray ba = ui->plainTextEditSend->toPlainText().toUtf8();
+    ba.append("\r");
+    writeSerialPort(ba);
+
+    ui->plainTextEditSend->clear();
 }
 
 void MainWindow::onNetworkFinished(QNetworkReply *reply)
@@ -99,63 +135,35 @@ void MainWindow::onNetworkFinished(QNetworkReply *reply)
     reply->deleteLater();
 }
 
-void MainWindow::on_pushButton_open_clicked()
+void MainWindow::onSerialPortOpenClicked()
 {
-    if (ui->pushButton_open->text() == "打开") {
-        m_port->setPortName(ui->comboBox_port->currentText());
-        m_port->setBaudRate(ui->comboBox_baudrate->currentData().value<QSerialPort::BaudRate>());
-        m_port->setDataBits(ui->comboBox_databits->currentData().value<QSerialPort::DataBits>());
-        m_port->setParity(ui->comboBox_parity->currentData().value<QSerialPort::Parity>());
-        m_port->setStopBits(ui->comboBox_stopbits->currentData().value<QSerialPort::StopBits>());
-        m_port->setFlowControl(ui->comboBoxFlowControl->currentData().value<QSerialPort::FlowControl>());
+    m_serialPort->setPortName(m_serialPortSetting->portName());
+    m_serialPort->setBaudRate(m_serialPortSetting->baudRate());
+    m_serialPort->setDataBits(m_serialPortSetting->dataBits());
+    m_serialPort->setParity(m_serialPortSetting->parity());
+    m_serialPort->setStopBits(m_serialPortSetting->stopBits());
+    m_serialPort->setFlowControl(m_serialPortSetting->flowControl());
 
-        if (!m_port->open(QSerialPort::ReadWrite)) {
-            QMessageBox::warning(this, QString("警告"), QString("打开失败：%1").arg(m_port->errorString()));
-            return;
-        }
+    gSettings->savePortName(m_serialPort->portName());
+    gSettings->saveBaudRate(m_serialPort->baudRate());
+    gSettings->saveDataBits(m_serialPort->dataBits());
+    gSettings->saveParity(m_serialPort->parity());
+    gSettings->saveStopBits(m_serialPort->stopBits());
+    gSettings->saveFlowControl(m_serialPort->flowControl());
 
-        ui->comboBox_port->setEnabled(false);
-        ui->comboBox_baudrate->setEnabled(false);
-        ui->comboBox_databits->setEnabled(false);
-        ui->comboBox_parity->setEnabled(false);
-        ui->comboBox_stopbits->setEnabled(false);
-        ui->comboBoxFlowControl->setEnabled(false);
-        ui->pushButton_open->setText("关闭");
+    if (!m_serialPort->open(QSerialPort::ReadWrite)) {
+        QMessageBox::warning(this, QString("警告"), QString("打开失败：%1").arg(m_serialPort->errorString()));
+        ui->actionConnect->setEnabled(true);
+        ui->actionDisconnect->setEnabled(false);
+        ui->labelSerialPortStatus->setText(QString("未打开"));
     } else {
-        m_port->close();
-
-        ui->comboBox_port->setEnabled(true);
-        ui->comboBox_baudrate->setEnabled(true);
-        ui->comboBox_databits->setEnabled(true);
-        ui->comboBox_parity->setEnabled(true);
-        ui->comboBox_stopbits->setEnabled(true);
-        ui->comboBoxFlowControl->setEnabled(true);
-        ui->pushButton_open->setText("打开");
+        ui->actionConnect->setEnabled(false);
+        ui->actionDisconnect->setEnabled(true);
+        ui->labelSerialPortStatus->setText(QString("串口：%1，%2").arg(m_serialPort->portName()).arg(m_serialPort->baudRate()));
     }
 }
 
-void MainWindow::on_pushButton_clear_receive_clicked()
-{
-    ui->plainTextEdit_receive->clear();
-}
-
-void MainWindow::on_pushButton_clear_send_clicked()
-{
-    ui->plainTextEdit_send->clear();
-}
-
-void MainWindow::on_pushButton_send_clicked()
-{
-    if (ui->checkBox_send_hex->isChecked()) {
-        QByteArray ba = QByteArray::fromHex(ui->plainTextEdit_send->toPlainText().toLatin1());
-        writeSerialPort(ba);
-    } else {
-        QByteArray ba = ui->plainTextEdit_send->toPlainText().toUtf8();
-        ba.append("\r");
-        writeSerialPort(ba);
-    }
-}
-
+#if 0
 void MainWindow::on_pushButton_clicked()
 {
     QSslConfiguration config;
@@ -176,7 +184,7 @@ void MainWindow::on_pushButton_clicked()
     QString imageMsg = QString(R"({"msgtype":"image","image":{"base64":"%1","md5":"%2"}})").arg(base64).arg(md5);
 
     //text
-    QString textMsg = ui->plainTextEdit_send->toPlainText().toUtf8();
+    QString textMsg = ui->plainTextEditSend->toPlainText().toUtf8();
 
     //markdown
     QString markdownMsg = QString(R"({"msgtype":"markdown","markdown":{"content":"设备异常\n>ip:<font color=\"comment\">192.168.1.1</font> \n>机型:<font color=\"comment\">8064</font>"}})");
@@ -185,4 +193,19 @@ void MainWindow::on_pushButton_clicked()
     request.setHeader(QNetworkRequest::ContentTypeHeader, QVariant("application/json"));
 
     m_networkManager->post(request, markdownMsg.toUtf8());
+}
+#endif
+
+void MainWindow::on_actionConnect_triggered()
+{
+    m_serialPortSetting->open();
+}
+
+void MainWindow::on_actionDisconnect_triggered()
+{
+    m_serialPort->close();
+
+    ui->actionConnect->setEnabled(true);
+    ui->actionDisconnect->setEnabled(false);
+    ui->labelSerialPortStatus->setText(QString("串口：未打开"));
 }

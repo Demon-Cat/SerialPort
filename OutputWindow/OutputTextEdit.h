@@ -14,13 +14,26 @@ public:
     explicit OutputTextEdit(QWidget *parent = nullptr);
     ~OutputTextEdit();
 
-    void appendMessage(const QString &out);
+    void appendMessage(const QString &text);
+    void insertMessage(const QString &text, bool keepCursor);
+    void overwriteMessage(const QString &text);
 
     void setLocalEchoEnable(bool enable);
+
+    void deletePreviousChar();
+    void deleteAfterChars();
+    void movePosition(QTextCursor::MoveOperation operation);
+
+    bool isEmpty() const;
 
 protected:
     bool isScrollbarAtBottom() const;
     void moveCursorToEnd();
+
+    void paintEvent(QPaintEvent *e) override;
+
+    void mousePressEvent(QMouseEvent *e) override;
+    void mouseReleaseEvent(QMouseEvent *e) override;
 
     void keyPressEvent(QKeyEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *e) override;
@@ -32,6 +45,7 @@ private slots:
     void scrollToBottom();
 
     void onActionCopy();
+    void onActionCopyAll();
     void onActionSelectAll();
 
 private:
@@ -42,6 +56,9 @@ private:
     bool m_localEchoEnabled = false;
 
     QMenu *m_menu = nullptr;
+    QAction *m_actionCopy = nullptr;
+    QAction *m_actionCopyAll = nullptr;
+    QAction *m_actionSelectAll = nullptr;
 };
 
 #endif // OUTPUTTEXTEDIT_H
