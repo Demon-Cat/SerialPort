@@ -10,11 +10,15 @@ Settings::Settings(QObject *parent) :
     m_settings = new QSettings(filePath, QSettings::IniFormat, this);
 }
 
-Settings *Settings::instance()
+void Settings::initialize(QObject *parent)
 {
     if (!self) {
-        self = new Settings();
+        self = new Settings(parent);
     }
+}
+
+Settings *Settings::instance()
+{
     return self;
 }
 

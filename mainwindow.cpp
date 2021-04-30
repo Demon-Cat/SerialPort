@@ -1,5 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "KeywordMonitor.h"
+#include "RobotManager.h"
 #include "SerialPortSetting.h"
 #include "Settings.h"
 #include <QBuffer>
@@ -11,6 +13,10 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    Settings::initialize(this);
+    KeywordMonitor::initialize(this);
+    RobotManager::initialize(this);
 
     m_serialPortSetting = new SerialPortSetting(this);
     connect(m_serialPortSetting, &SerialPortSetting::openClicked, this, &MainWindow::onSerialPortOpenClicked);
@@ -28,7 +34,6 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->splitter->restoreState(gSettings->splitterState());
 
-    //
     m_networkManager = new QNetworkAccessManager(this);
     connect(m_networkManager, &QNetworkAccessManager::finished, this, &MainWindow::onNetworkFinished);
 
@@ -43,8 +48,6 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow()
 {
     delete ui;
-
-    delete Settings::instance();
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)
@@ -208,4 +211,13 @@ void MainWindow::on_actionDisconnect_triggered()
     ui->actionConnect->setEnabled(true);
     ui->actionDisconnect->setEnabled(false);
     ui->labelSerialPortStatus->setText(QString("串口：未打开"));
+}
+
+void MainWindow::on_actionRobot_triggered()
+{
+}
+
+void MainWindow::on_actionKeywordMonitor_triggered()
+{
+    gKeyworkMonitor->show();
 }

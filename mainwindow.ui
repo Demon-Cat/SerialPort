@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>800</width>
-    <height>600</height>
+    <height>610</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -29,11 +29,13 @@
     </property>
     <item>
      <widget class="QSplitter" name="splitter">
+      <property name="styleSheet">
+       <string notr="true">QSplitter::handle {
+	border-top: 1px solid #B9B9B9;
+}</string>
+      </property>
       <property name="orientation">
        <enum>Qt::Vertical</enum>
-      </property>
-      <property name="handleWidth">
-       <number>0</number>
       </property>
       <property name="childrenCollapsible">
        <bool>false</bool>
@@ -46,12 +48,6 @@
        </layout>
       </widget>
       <widget class="QWidget" name="widgetSend" native="true">
-       <property name="styleSheet">
-        <string notr="true">#widgetSend
-{
-border-top: 1px solid #B9B9B9;
-}</string>
-       </property>
        <layout class="QVBoxLayout" name="verticalLayout_3">
         <item>
          <widget class="QWidget" name="widget" native="true">
@@ -176,6 +172,7 @@ border-top: 1px solid #B9B9B9;
    <addaction name="actionDisconnect"/>
    <addaction name="separator"/>
    <addaction name="actionRobot"/>
+   <addaction name="actionKeywordMonitor"/>
   </widget>
   <action name="actionConnect">
    <property name="icon">
@@ -205,6 +202,15 @@ border-top: 1px solid #B9B9B9;
    </property>
    <property name="toolTip">
     <string>群机器人</string>
+   </property>
+  </action>
+  <action name="actionKeywordMonitor">
+   <property name="icon">
+    <iconset resource="resource.qrc">
+     <normaloff>:/images/monitor.png</normaloff>:/images/monitor.png</iconset>
+   </property>
+   <property name="text">
+    <string>关键字监听</string>
    </property>
   </action>
  </widget>

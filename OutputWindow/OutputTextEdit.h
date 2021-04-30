@@ -47,6 +47,7 @@ private slots:
     void onActionCopy();
     void onActionCopyAll();
     void onActionSelectAll();
+    void onActionClean();
 
 private:
     QTextCursor m_cursor;
@@ -59,6 +60,7 @@ private:
     QAction *m_actionCopy = nullptr;
     QAction *m_actionCopyAll = nullptr;
     QAction *m_actionSelectAll = nullptr;
+    QAction *m_actionClean = nullptr;
 };
 
 #endif // OUTPUTTEXTEDIT_H

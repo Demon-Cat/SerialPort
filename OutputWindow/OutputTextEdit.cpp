@@ -25,10 +25,14 @@ OutputTextEdit::OutputTextEdit(QWidget *parent)
     connect(m_actionCopyAll, &QAction::triggered, this, &OutputTextEdit::onActionCopyAll);
     m_actionSelectAll = new QAction("选择全部", this);
     connect(m_actionSelectAll, &QAction::triggered, this, &OutputTextEdit::onActionSelectAll);
+    m_actionClean = new QAction("清空", this);
+    connect(m_actionClean, &QAction::triggered, this, &OutputTextEdit::onActionClean);
     m_menu->addAction(m_actionCopy);
     m_menu->addAction(m_actionCopyAll);
     m_menu->addSeparator();
     m_menu->addAction(m_actionSelectAll);
+    m_menu->addSeparator();
+    m_menu->addAction(m_actionClean);
 
     m_cursor = textCursor();
     m_ansiHandler = new AnsiEscapeCodeHandler();
@@ -217,6 +221,13 @@ void OutputTextEdit::contextMenuEvent(QContextMenuEvent *e)
     } else {
         m_actionCopy->setEnabled(false);
     }
+
+    if (isEmpty()) {
+        m_actionCopyAll->setEnabled(false);
+    } else {
+        m_actionCopyAll->setEnabled(true);
+    }
+
     m_menu->exec(QCursor::pos());
 }
 
@@ -245,4 +256,9 @@ void OutputTextEdit::onActionCopyAll()
 void OutputTextEdit::onActionSelectAll()
 {
     selectAll();
+}
+
+void OutputTextEdit::onActionClean()
+{
+    clear();
 }

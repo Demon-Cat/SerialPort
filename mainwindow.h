@@ -42,6 +42,8 @@ private slots:
 
     void on_actionConnect_triggered();
     void on_actionDisconnect_triggered();
+    void on_actionRobot_triggered();
+    void on_actionKeywordMonitor_triggered();
 
 private:
     Ui::MainWindow *ui;

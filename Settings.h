@@ -12,6 +12,7 @@ class Settings : public QObject
 public:
     explicit Settings(QObject *parent = nullptr);
 
+    static void initialize(QObject *parent);
     static Settings *instance();
 
     void saveSplitterState(const QByteArray &value);
