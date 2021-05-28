@@ -1,3 +1,4 @@
+#include "Settings.h"
 #include "mainwindow.h"
 #include <QApplication>
 #include <QDir>
@@ -5,6 +6,7 @@
 
 int main(int argc, char *argv[])
 {
+    qSetMessagePattern("[%{time yyyy-MM-dd HH:mm:ss.zzz}][%{type}][%{function} %{line}]%{message}");
     QApplication a(argc, argv);
 
 #if 0
@@ -26,6 +28,8 @@ int main(int argc, char *argv[])
         break;
     }
 #endif
+
+    a.setFont(gSettings.appFont());
 
     MainWindow w;
     w.show();

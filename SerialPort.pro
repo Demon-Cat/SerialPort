@@ -1,4 +1,4 @@
-QT       += core gui network serialport
+QT       += core gui network serialport sql
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -17,24 +17,25 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
+include($$PWD/Database/Database.pri)
 include($$PWD/KeywordMonitor/KeywordMonitor.pri)
 include($$PWD/OutputWindow/OutputWindow.pri)
 include($$PWD/Robot/Robot.pri)
+include($$PWD/SerialPort/SerialPort.pri)
+include($$PWD/Shotcut/Shotcut.pri)
 include($$PWD/TableView/TableView.pri)
+include($$PWD/TabBar/TabBar.pri)
 
 SOURCES += \
-    SerialPortSetting.cpp \
     Settings.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
-    SerialPortSetting.h \
     Settings.h \
     mainwindow.h
 
 FORMS += \
-    SerialPortSetting.ui \
     mainwindow.ui
 
 # Default rules for deployment.

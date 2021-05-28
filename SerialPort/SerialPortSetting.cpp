@@ -1,6 +1,5 @@
 #include "SerialPortSetting.h"
 #include "ui_SerialPortSetting.h"
-#include "Settings.h"
 #include <QMap>
 
 SerialPortSetting::SerialPortSetting(QWidget *parent) :
@@ -19,7 +18,6 @@ SerialPortSetting::SerialPortSetting(QWidget *parent) :
     for (auto iter = names.constBegin(); iter != names.constEnd(); ++iter) {
         ui->comboBoxPort->addItem(iter.value());
     }
-    ui->comboBoxPort->setCurrentIndex(ui->comboBoxPort->findText(gSettings->portName()));
 
     ui->comboBoxBaudRate->addItem("1200", QSerialPort::Baud1200);
     ui->comboBoxBaudRate->addItem("2400", QSerialPort::Baud2400);
@@ -29,59 +27,45 @@ SerialPortSetting::SerialPortSetting(QWidget *parent) :
     ui->comboBoxBaudRate->addItem("38400", QSerialPort::Baud38400);
     ui->comboBoxBaudRate->addItem("57600", QSerialPort::Baud57600);
     ui->comboBoxBaudRate->addItem("115200", QSerialPort::Baud115200);
-    int index = ui->comboBoxBaudRate->findData(gSettings->baudRate());
-    if (index < 0) {
-        ui->comboBoxBaudRate->setCurrentIndex(7);
-    } else {
-        ui->comboBoxBaudRate->setCurrentIndex(index);
-    }
+    ui->comboBoxBaudRate->setCurrentIndex(7);
 
     ui->comboBoxDatabits->addItem("5", QSerialPort::Data5);
     ui->comboBoxDatabits->addItem("6", QSerialPort::Data6);
     ui->comboBoxDatabits->addItem("7", QSerialPort::Data7);
     ui->comboBoxDatabits->addItem("8", QSerialPort::Data8);
-    index = ui->comboBoxDatabits->findData(gSettings->dataBits());
-    if (index < 0) {
-        ui->comboBoxDatabits->setCurrentIndex(3);
-    } else {
-        ui->comboBoxDatabits->setCurrentIndex(index);
-    }
+    ui->comboBoxDatabits->setCurrentIndex(3);
 
     ui->comboBoxParity->addItem("NoParity", QSerialPort::NoParity);
     ui->comboBoxParity->addItem("EvenParity", QSerialPort::EvenParity);
     ui->comboBoxParity->addItem("OddParity", QSerialPort::OddParity);
-    index = ui->comboBoxParity->findData(gSettings->parity());
-    if (index < 0) {
-        ui->comboBoxParity->setCurrentIndex(0);
-    } else {
-        ui->comboBoxParity->setCurrentIndex(index);
-    }
+    ui->comboBoxParity->setCurrentIndex(0);
 
     ui->comboBoxStopbits->addItem("OneStop", QSerialPort::OneStop);
     ui->comboBoxStopbits->addItem("OneAndHalfStop", QSerialPort::OneAndHalfStop);
     ui->comboBoxStopbits->addItem("TwoStop", QSerialPort::TwoStop);
     ui->comboBoxStopbits->setCurrentIndex(0);
-    index = ui->comboBoxStopbits->findData(gSettings->stopBits());
-    if (index < 0) {
-        ui->comboBoxStopbits->setCurrentIndex(0);
-    } else {
-        ui->comboBoxStopbits->setCurrentIndex(index);
-    }
 
     ui->comboBoxFlowControl->addItem("No", QSerialPort::NoFlowControl);
     ui->comboBoxFlowControl->addItem("RTS/CTS", QSerialPort::HardwareControl);
     ui->comboBoxFlowControl->addItem("XON/XOFF", QSerialPort::SoftwareControl);
-    index = ui->comboBoxFlowControl->findData(gSettings->flowControl());
-    if (index < 0) {
-        ui->comboBoxFlowControl->setCurrentIndex(0);
-    } else {
-        ui->comboBoxFlowControl->setCurrentIndex(index);
-    }
+    ui->comboBoxFlowControl->setCurrentIndex(0);
 }
 
 SerialPortSetting::~SerialPortSetting()
 {
     delete ui;
+}
+
+SerialPortInfo SerialPortSetting::serialPortInfo() const
+{
+    SerialPortInfo info;
+    info.setPortName(ui->comboBoxPort->currentText());
+    info.setBaudRate(ui->comboBoxBaudRate->currentData().toInt());
+    info.setDataBits(ui->comboBoxDatabits->currentData().toInt());
+    info.setParity(ui->comboBoxParity->currentData().toInt());
+    info.setFlowControl(ui->comboBoxFlowControl->currentData().toInt());
+    info.setMessage(ui->lineEditMessage->text());
+    return info;
 }
 
 QString SerialPortSetting::portName() const
@@ -112,6 +96,11 @@ QSerialPort::StopBits SerialPortSetting::stopBits() const
 QSerialPort::FlowControl SerialPortSetting::flowControl() const
 {
     return ui->comboBoxFlowControl->currentData().value<QSerialPort::FlowControl>();
+}
+
+QString SerialPortSetting::message() const
+{
+    return ui->lineEditMessage->text();
 }
 
 void SerialPortSetting::on_pushButtonOpen_clicked()

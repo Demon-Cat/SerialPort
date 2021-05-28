@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "Database.h"
 #include "KeywordMonitor.h"
+#include "OutputWidget.h"
 #include "RobotManager.h"
 #include "SerialPortSetting.h"
 #include "Settings.h"
@@ -14,35 +16,38 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    Settings::initialize(this);
     KeywordMonitor::initialize(this);
     RobotManager::initialize(this);
 
-    m_serialPortSetting = new SerialPortSetting(this);
-    connect(m_serialPortSetting, &SerialPortSetting::openClicked, this, &MainWindow::onSerialPortOpenClicked);
+    connect(ui->tabBar, &TabBar::addClicked, this, &MainWindow::onTabAddClicked);
+    connect(ui->tabBar, &TabBar::tabClicked, this, &MainWindow::onTabClicked);
+    connect(ui->tabBar, &TabBar::tabCloseRequested, this, &MainWindow::onTabCloseRequested);
 
-    m_serialPort = new QSerialPort(this);
-    connect(m_serialPort, &QSerialPort::errorOccurred, this, &MainWindow::onSerialPortErrorOccurred);
-    connect(m_serialPort, &QSerialPort::readyRead, this, &MainWindow::onReadyRead);
-
-    connect(ui->plainTextEditReceive, &OutputTextEdit::getData, this, &MainWindow::onOutputTextEditInput);
+    connect(ui->shortcutWidget, &ShortcutWidget::input, this, &MainWindow::onShortcutInput);
     connect(ui->plainTextEditSend, &InputTextEdit::enterPressed, this, &MainWindow::onInputTextEditEnterPressed);
 
-    QFont font("Source Code Pro", 9);
-    ui->plainTextEditReceive->setFont(font);
-    ui->plainTextEditSend->setFont(font);
-
-    ui->splitter->restoreState(gSettings->splitterState());
+    ui->splitter->restoreState(gSettings.splitterState());
 
     m_networkManager = new QNetworkAccessManager(this);
     connect(m_networkManager, &QNetworkAccessManager::finished, this, &MainWindow::onNetworkFinished);
 
-    ui->actionConnect->setEnabled(true);
+    ui->actionConnect->setEnabled(false);
     ui->actionDisconnect->setEnabled(false);
 
-    if (gSettings->isMaximized()) {
+    if (gSettings.isMaximized()) {
         showMaximized();
     }
+
+    QList<SerialPortInfo> listSerialPortInfo = gDatabase.selectSerialPort();
+    if (!listSerialPortInfo.isEmpty()) {
+        foreach (const SerialPortInfo &info, listSerialPortInfo) {
+            addTab(info);
+        }
+        ui->tabBar->setCurrentTab(gSettings.portName());
+    }
+
+    qDebug() << "SSL library in use at compile time:" << QSslSocket::sslLibraryBuildVersionString();
+    qDebug() << "SSL library in use at run-time:" << QSslSocket::sslLibraryVersionString();
 }
 
 MainWindow::~MainWindow()
@@ -57,77 +62,108 @@ void MainWindow::closeEvent(QCloseEvent *event)
         return;
     }
 
-    gSettings->saveSplitterState(ui->splitter->saveState());
-    gSettings->saveMaximized(isMaximized());
+    gSettings.saveSplitterState(ui->splitter->saveState());
+    gSettings.saveMaximized(isMaximized());
 }
 
-quint64 MainWindow::writeSerialPort(const QByteArray &data)
+void MainWindow::addTab(const SerialPortInfo &info)
 {
-    if (!m_serialPort->isOpen()) {
-        return 0;
+    ui->tabBar->addTab(info.portName());
+
+    OutputWidget *widget = new OutputWidget(this);
+    widget->setSerialPortInfo(info);
+    if (widget->openSerialPort()) {
+        ui->tabBar->setTabState(widget->portName(), TabButton::StateConnected);
+    } else {
+        ui->tabBar->setTabState(widget->portName(), TabButton::StateDisconnected);
     }
 
-    return m_serialPort->write(data);
+    m_mapOutputWidget.insert(info.portName(), widget);
 }
 
-void MainWindow::onSerialPortErrorOccurred(QSerialPort::SerialPortError error)
+OutputWidget *MainWindow::currentOutputWidget()
 {
-    qDebug() << error;
+    QString text = ui->tabBar->currentTab();
+    return m_mapOutputWidget.value(text);
 }
 
-void MainWindow::onReadyRead()
+void MainWindow::onTabAddClicked()
 {
-    QByteArray data = m_serialPort->readAll();
-    if (data.isEmpty()) {
+    SerialPortSetting setting(this);
+    int result = setting.exec();
+    if (result == SerialPortSetting::Accepted) {
+        const SerialPortInfo &info = setting.serialPortInfo();
+        addTab(info);
+        ui->tabBar->setCurrentTab(info.portName());
+
+        gDatabase.updateSerialPort(info);
+    }
+}
+
+void MainWindow::onTabClicked(const QString &text)
+{
+    if (text.isEmpty()) {
         return;
     }
 
-    if (data.startsWith("\a")) {
-        return;
-    }
-
-    //退格
-    if (data.startsWith("\b")) {
-        //左移动光标
-        if (data.size() == 1) {
-            ui->plainTextEditReceive->movePosition(QTextCursor::Left);
-            return;
-        }
-        //退格，光标在最后，如果收到081B5B4A，则执行退格操作
-        if (data.at(1) == 0x1b) {
-            ui->plainTextEditReceive->deletePreviousChar();
-            return;
-        }
-        //退格，光标不在最后，删除光标位置和之后的所有字符，串口会发送回来多删除的字符
-        if (data.at(1) != 0x1b) {
-            ui->plainTextEditReceive->deleteAfterChars();
-            int end = data.indexOf(0x1b);
-            QByteArray ba = data.mid(1, end - 1);
-            ui->plainTextEditReceive->insertMessage(ba, true);
-            return;
+    QLayoutItem *item = ui->outputLayout->itemAtPosition(0, 0);
+    if (item) {
+        QWidget *old = item->widget();
+        if (old) {
+            ui->outputLayout->removeWidget(old);
+            old->hide();
         }
     }
 
-    //右移动光标，会收到字符，从当前光标位置覆盖
-    if (data.size() == 1) {
-        ui->plainTextEditReceive->overwriteMessage(data);
-        return;
-    }
+    OutputWidget *widget = m_mapOutputWidget.value(text);
+    if (widget) {
+        ui->outputLayout->addWidget(widget, 0, 0);
+        widget->show();
 
-    //
-    ui->plainTextEditReceive->appendMessage(data);
+        if (widget->isOpen()) {
+            ui->actionConnect->setEnabled(false);
+            ui->actionDisconnect->setEnabled(true);
+            ui->labelSerialPortStatus->setText(widget->stateString());
+            ui->tabBar->setTabState(widget->portName(), TabButton::StateConnected);
+        } else {
+            ui->actionConnect->setEnabled(true);
+            ui->actionDisconnect->setEnabled(false);
+            ui->labelSerialPortStatus->setText(widget->stateString());
+            ui->tabBar->setTabState(widget->portName(), TabButton::StateDisconnected);
+        }
+
+        gSettings.savePortName(text);
+    }
 }
 
-void MainWindow::onOutputTextEditInput(const QByteArray &data)
+void MainWindow::onTabCloseRequested(const QString &text)
 {
-    writeSerialPort(data);
+    OutputWidget *widget = m_mapOutputWidget.value(text);
+    if (widget) {
+        gDatabase.deleteSerialPort(widget->serialPortInfo());
+        widget->closeSerialPort();
+        widget->deleteLater();
+        m_mapOutputWidget.remove(text);
+        ui->tabBar->removeTab(text);
+    }
+}
+
+void MainWindow::onShortcutInput(const QByteArray &data)
+{
+    OutputWidget *output = currentOutputWidget();
+    if (output) {
+        output->writeSerialPort(data);
+    }
 }
 
 void MainWindow::onInputTextEditEnterPressed()
 {
-    QByteArray ba = ui->plainTextEditSend->toPlainText().toUtf8();
-    ba.append("\r");
-    writeSerialPort(ba);
+    OutputWidget *output = currentOutputWidget();
+    if (output) {
+        QByteArray ba = ui->plainTextEditSend->toPlainText().toUtf8();
+        ba.append("\r");
+        output->writeSerialPort(ba);
+    }
 
     ui->plainTextEditSend->clear();
 }
@@ -136,34 +172,6 @@ void MainWindow::onNetworkFinished(QNetworkReply *reply)
 {
     qDebug() << reply->readAll();
     reply->deleteLater();
-}
-
-void MainWindow::onSerialPortOpenClicked()
-{
-    m_serialPort->setPortName(m_serialPortSetting->portName());
-    m_serialPort->setBaudRate(m_serialPortSetting->baudRate());
-    m_serialPort->setDataBits(m_serialPortSetting->dataBits());
-    m_serialPort->setParity(m_serialPortSetting->parity());
-    m_serialPort->setStopBits(m_serialPortSetting->stopBits());
-    m_serialPort->setFlowControl(m_serialPortSetting->flowControl());
-
-    gSettings->savePortName(m_serialPort->portName());
-    gSettings->saveBaudRate(m_serialPort->baudRate());
-    gSettings->saveDataBits(m_serialPort->dataBits());
-    gSettings->saveParity(m_serialPort->parity());
-    gSettings->saveStopBits(m_serialPort->stopBits());
-    gSettings->saveFlowControl(m_serialPort->flowControl());
-
-    if (!m_serialPort->open(QSerialPort::ReadWrite)) {
-        QMessageBox::warning(this, QString("警告"), QString("打开失败：%1").arg(m_serialPort->errorString()));
-        ui->actionConnect->setEnabled(true);
-        ui->actionDisconnect->setEnabled(false);
-        ui->labelSerialPortStatus->setText(QString("未打开"));
-    } else {
-        ui->actionConnect->setEnabled(false);
-        ui->actionDisconnect->setEnabled(true);
-        ui->labelSerialPortStatus->setText(QString("串口：%1，%2").arg(m_serialPort->portName()).arg(m_serialPort->baudRate()));
-    }
 }
 
 #if 0
@@ -201,20 +209,38 @@ void MainWindow::on_pushButton_clicked()
 
 void MainWindow::on_actionConnect_triggered()
 {
-    m_serialPortSetting->open();
+    OutputWidget *widget = currentOutputWidget();
+    if (widget) {
+        if (widget->openSerialPort()) {
+            ui->actionConnect->setEnabled(false);
+            ui->actionDisconnect->setEnabled(true);
+            ui->labelSerialPortStatus->setText(widget->stateString());
+            ui->tabBar->setTabState(widget->portName(), TabButton::StateConnected);
+        } else {
+            ui->actionConnect->setEnabled(true);
+            ui->actionDisconnect->setEnabled(false);
+            ui->labelSerialPortStatus->setText(widget->stateString());
+            ui->tabBar->setTabState(widget->portName(), TabButton::StateDisconnected);
+        }
+    }
 }
 
 void MainWindow::on_actionDisconnect_triggered()
 {
-    m_serialPort->close();
+    OutputWidget *widget = currentOutputWidget();
+    if (widget) {
+        widget->closeSerialPort();
 
-    ui->actionConnect->setEnabled(true);
-    ui->actionDisconnect->setEnabled(false);
-    ui->labelSerialPortStatus->setText(QString("串口：未打开"));
+        ui->actionConnect->setEnabled(true);
+        ui->actionDisconnect->setEnabled(false);
+        ui->labelSerialPortStatus->setText(widget->stateString());
+        ui->tabBar->setTabState(widget->portName(), TabButton::StateDisconnected);
+    }
 }
 
 void MainWindow::on_actionRobot_triggered()
 {
+    gRobotManager->show();
 }
 
 void MainWindow::on_actionKeywordMonitor_triggered()

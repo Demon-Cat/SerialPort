@@ -12,8 +12,7 @@ class Settings : public QObject
 public:
     explicit Settings(QObject *parent = nullptr);
 
-    static void initialize(QObject *parent);
-    static Settings *instance();
+    static Settings &instance();
 
     void saveSplitterState(const QByteArray &value);
     QByteArray splitterState() const;
@@ -34,11 +33,14 @@ public:
     void saveFlowControl(int value);
     int flowControl() const;
 
+    void saveAppFont(const QFont &font);
+    QFont appFont();
+    void saveSessionFont(const QFont &font);
+    QFont sessionFont();
+
 signals:
 
 private:
-    static Settings *self;
-
     QSettings *m_settings = nullptr;
 };
 

@@ -1,8 +1,10 @@
 #include "OutputTextEdit.h"
 #include <QGuiApplication>
+#include "Settings.h"
 #include "ansiescapecodehandler.h"
 #include <QClipboard>
 #include <QCursor>
+#include <QFontDialog>
 #include <QMenu>
 #include <QMimeData>
 #include <QPainter>
@@ -13,26 +15,34 @@ OutputTextEdit::OutputTextEdit(QWidget *parent)
     : QPlainTextEdit(parent)
 {
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
-    //setReadOnly(true);
+    setReadOnly(true);
+    setTabChangesFocus(false);
     setLineWrapMode(NoWrap);
     setOverwriteMode(true);
-    //setTextInteractionFlags(Qt::TextSelectableByMouse | Qt::TextSelectableByKeyboard);
+    setUndoRedoEnabled(false);
 
     m_menu = new QMenu(this);
     m_actionCopy = new QAction("复制", this);
     connect(m_actionCopy, &QAction::triggered, this, &OutputTextEdit::onActionCopy);
     m_actionCopyAll = new QAction("复制全部", this);
     connect(m_actionCopyAll, &QAction::triggered, this, &OutputTextEdit::onActionCopyAll);
-    m_actionSelectAll = new QAction("选择全部", this);
-    connect(m_actionSelectAll, &QAction::triggered, this, &OutputTextEdit::onActionSelectAll);
+    m_actionPaster = new QAction("粘贴", this);
+    connect(m_actionPaster, &QAction::triggered, this, &OutputTextEdit::onActionPaster);
     m_actionClean = new QAction("清空", this);
     connect(m_actionClean, &QAction::triggered, this, &OutputTextEdit::onActionClean);
+    m_actionScrollToBottom = new QAction("滚动到最后", this);
+    connect(m_actionScrollToBottom, &QAction::triggered, this, &OutputTextEdit::onActionScrollToBottom);
+    m_actionFont = new QAction("字体...", this);
+    connect(m_actionFont, &QAction::triggered, this, &OutputTextEdit::onActionFont);
     m_menu->addAction(m_actionCopy);
     m_menu->addAction(m_actionCopyAll);
-    m_menu->addSeparator();
-    m_menu->addAction(m_actionSelectAll);
+    m_menu->addAction(m_actionPaster);
     m_menu->addSeparator();
     m_menu->addAction(m_actionClean);
+    m_menu->addSeparator();
+    m_menu->addAction(m_actionScrollToBottom);
+    m_menu->addSeparator();
+    m_menu->addAction(m_actionFont);
 
     m_cursor = textCursor();
     m_ansiHandler = new AnsiEscapeCodeHandler();
@@ -41,6 +51,19 @@ OutputTextEdit::OutputTextEdit(QWidget *parent)
     m_scrollTimer.setSingleShot(true);
     connect(&m_scrollTimer, &QTimer::timeout, this, &OutputTextEdit::scrollToBottom);
     m_lastMessage.start();
+
+    m_cursorBlink.setInterval(500);
+    connect(&m_cursorBlink, &QTimer::timeout, this, [=]() {
+        m_blink = !m_blink;
+        viewport()->update();
+    });
+    m_cursorBlink.start();
+
+    //    QPalette p = palette();
+    //    p.setBrush(QPalette::Base, QColor(46, 47, 48));
+    //    setPalette(p);
+
+    setFont(gSettings.sessionFont());
 }
 
 OutputTextEdit::~OutputTextEdit()
@@ -51,21 +74,32 @@ OutputTextEdit::~OutputTextEdit()
 
 void OutputTextEdit::appendMessage(const QString &text)
 {
+    if (text.isEmpty()) {
+        return;
+    }
+
+    //超过两万行后一次性删除一万行，避免一直滚动
+    if (blockCount() > 20000) {
+        QTextCursor cursor = textCursor();
+        cursor.movePosition(QTextCursor::Start);
+        cursor.movePosition(QTextCursor::NextBlock, QTextCursor::KeepAnchor, 10000);
+        cursor.removeSelectedText();
+    }
+
+    //
     const bool atBottom = isScrollbarAtBottom() || m_scrollTimer.isActive();
 
     if (!m_cursor.atEnd()) {
-        m_cursor.movePosition(QTextCursor::End);
+        if (text.size() == 1) {
+            m_cursor.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor);
+        } else {
+            m_cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+        }
     }
 
     QList<FormattedText> formattedTextList = m_ansiHandler->parseText(FormattedText(text));
     for (int i = 0; i < formattedTextList.size(); ++i) {
         const FormattedText &formattedText = formattedTextList.at(i);
-
-        QTextCursor cursor = textCursor();
-        if (overwriteMode() && !cursor.hasSelection() && !cursor.atBlockEnd()) {
-            // no need to call deleteChar() if we have a selection, insertText does it already
-            cursor.deleteChar();
-        }
         m_cursor.insertText(formattedText.text, formattedText.format);
     }
 
@@ -81,60 +115,20 @@ void OutputTextEdit::appendMessage(const QString &text)
     m_lastMessage.start();
 }
 
-void OutputTextEdit::insertMessage(const QString &text, bool keepCursor)
-{
-    QTextCursor cursor = textCursor();
-    int position = cursor.position();
-    cursor.insertText(text);
-    cursor.setPosition(position);
-    if (keepCursor) {
-        setTextCursor(cursor);
-    }
-}
-
-void OutputTextEdit::overwriteMessage(const QString &text)
-{
-    QTextCursor cursor = textCursor();
-    cursor.movePosition(QTextCursor::NextCharacter, QTextCursor::KeepAnchor, text.size());
-    cursor.insertText(text);
-}
-
-void OutputTextEdit::setLocalEchoEnable(bool enable)
-{
-    m_localEchoEnabled = enable;
-}
-
-void OutputTextEdit::deletePreviousChar()
-{
-    QTextCursor cursor = textCursor();
-    cursor.deletePreviousChar();
-}
-
 /**
  * @brief OutputTextEdit::deleteAfterChars
- * 删除从光标之前1个字符到最后的所有字符
+ * 删除从光标到最后的所有字符
  */
 void OutputTextEdit::deleteAfterChars()
 {
-    QTextCursor cursor = textCursor();
-    cursor.movePosition(QTextCursor::PreviousCharacter, QTextCursor::MoveAnchor);
-    cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
-    cursor.removeSelectedText();
+    m_cursor.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+    m_cursor.removeSelectedText();
 }
 
 void OutputTextEdit::movePosition(QTextCursor::MoveOperation operation)
 {
-    switch (operation) {
-    case QTextCursor::Left:
-    case QTextCursor::Right: {
-        QTextCursor cursor = textCursor();
-        cursor.movePosition(operation);
-        setTextCursor(cursor);
-        break;
-    }
-    default:
-        break;
-    }
+    m_cursor.movePosition(operation);
+    setTextCursor(m_cursor);
 }
 
 bool OutputTextEdit::isEmpty() const
@@ -147,23 +141,18 @@ bool OutputTextEdit::isScrollbarAtBottom() const
     return verticalScrollBar()->value() == verticalScrollBar()->maximum();
 }
 
-void OutputTextEdit::moveCursorToEnd()
-{
-    QTextCursor cursor = textCursor();
-    if (!cursor.atEnd()) {
-        cursor.movePosition(QTextCursor::End);
-        setTextCursor(cursor);
-    }
-}
-
 void OutputTextEdit::paintEvent(QPaintEvent *e)
 {
     QPlainTextEdit::paintEvent(e);
 
-#if 0
-    QPainter painter(viewport());
-    painter.fillRect(cursorRect(), QBrush(QColor(0, 0, 255, 80)));
-#endif
+    if (!hasFocus()) {
+        return;
+    }
+
+    if (m_blink) {
+        QPainter painter(viewport());
+        painter.fillRect(cursorRect(m_cursor), QBrush(QColor(0, 0, 0, 100)));
+    }
 }
 
 void OutputTextEdit::mousePressEvent(QMouseEvent *e)
@@ -178,37 +167,36 @@ void OutputTextEdit::mouseReleaseEvent(QMouseEvent *e)
 
 void OutputTextEdit::keyPressEvent(QKeyEvent *event)
 {
+    //qDebug() << event;
+
     QByteArray text;
     switch (event->key()) {
     case Qt::Key_Backspace:
         //先发送0x08过去，根据收到的回复执行退格操作
-        text = event->text().toLocal8Bit();
+        text = "\b";
         break;
     case Qt::Key_Left:
-        text = QByteArray::fromHex("1B5B44");
+        text = "\x1b[D";
         break;
     case Qt::Key_Right:
-        text = QByteArray::fromHex("1B5B43");
+        text = "\x1b[C";
         break;
     case Qt::Key_Up:
-        text = QByteArray::fromHex("1B5B41");
-        moveCursorToEnd();
+        text = "\x1b[A";
         break;
     case Qt::Key_Down:
-        text = QByteArray::fromHex("1B5B42");
-        moveCursorToEnd();
+        text = "\x1b[B";
+        break;
+    case Qt::Key_End:
+        text = "\x1b[4~";
         break;
     default:
         text = event->text().toLocal8Bit();
-        moveCursorToEnd();
         break;
     }
 
-    if (m_localEchoEnabled) {
-        QPlainTextEdit::keyPressEvent(event);
-    }
     if (!text.isEmpty()) {
-        emit getData(text);
+        emit input(text);
     }
 }
 
@@ -229,6 +217,13 @@ void OutputTextEdit::contextMenuEvent(QContextMenuEvent *e)
     }
 
     m_menu->exec(QCursor::pos());
+}
+
+bool OutputTextEdit::focusNextPrevChild(bool next)
+{
+    Q_UNUSED(next)
+    //避免disable后无法收到tab键消息
+    return false;
 }
 
 void OutputTextEdit::scrollToBottom()
@@ -253,6 +248,16 @@ void OutputTextEdit::onActionCopyAll()
     QGuiApplication::clipboard()->setMimeData(data);
 }
 
+void OutputTextEdit::onActionPaster()
+{
+    QClipboard *clipboard = QGuiApplication::clipboard();
+    QString originalText = clipboard->text();
+    if (originalText.isEmpty()) {
+        return;
+    }
+    emit input(originalText.toUtf8());
+}
+
 void OutputTextEdit::onActionSelectAll()
 {
     selectAll();
@@ -261,4 +266,20 @@ void OutputTextEdit::onActionSelectAll()
 void OutputTextEdit::onActionClean()
 {
     clear();
+}
+
+void OutputTextEdit::onActionScrollToBottom()
+{
+    scrollToBottom();
+}
+
+void OutputTextEdit::onActionFont()
+{
+    bool ok;
+    QFont newFont = QFontDialog::getFont(&ok, font(), this);
+    if (ok) {
+        setFont(newFont);
+        gSettings.saveSessionFont(newFont);
+    } else {
+    }
 }

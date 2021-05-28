@@ -15,12 +15,7 @@ public:
     ~OutputTextEdit();
 
     void appendMessage(const QString &text);
-    void insertMessage(const QString &text, bool keepCursor);
-    void overwriteMessage(const QString &text);
 
-    void setLocalEchoEnable(bool enable);
-
-    void deletePreviousChar();
     void deleteAfterChars();
     void movePosition(QTextCursor::MoveOperation operation);
 
@@ -28,7 +23,6 @@ public:
 
 protected:
     bool isScrollbarAtBottom() const;
-    void moveCursorToEnd();
 
     void paintEvent(QPaintEvent *e) override;
 
@@ -38,29 +32,39 @@ protected:
     void keyPressEvent(QKeyEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *e) override;
 
+    bool focusNextPrevChild(bool next) override;
+
 signals:
-    void getData(const QByteArray &data);
+    void input(const QByteArray &data);
 
 private slots:
     void scrollToBottom();
 
     void onActionCopy();
     void onActionCopyAll();
+    void onActionPaster();
     void onActionSelectAll();
     void onActionClean();
+    void onActionScrollToBottom();
+    void onActionFont();
 
 private:
     QTextCursor m_cursor;
     AnsiEscapeCodeHandler *m_ansiHandler = nullptr;
     QTimer m_scrollTimer;
     QElapsedTimer m_lastMessage;
-    bool m_localEchoEnabled = false;
 
     QMenu *m_menu = nullptr;
     QAction *m_actionCopy = nullptr;
     QAction *m_actionCopyAll = nullptr;
+    QAction *m_actionPaster = nullptr;
     QAction *m_actionSelectAll = nullptr;
     QAction *m_actionClean = nullptr;
+    QAction *m_actionScrollToBottom = nullptr;
+    QAction *m_actionFont = nullptr;
+
+    QTimer m_cursorBlink;
+    bool m_blink = false;
 };
 
 #endif // OUTPUTTEXTEDIT_H

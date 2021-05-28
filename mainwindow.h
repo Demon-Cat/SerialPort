@@ -2,15 +2,15 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QSerialPort>
-#include <QSerialPortInfo>
 
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSslConfiguration>
 
-class SerialPortSetting;
+#include "SerialPortInfo.h"
+
+class OutputWidget;
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -29,13 +29,15 @@ protected:
     void closeEvent(QCloseEvent *event) override;
 
 private:
-    quint64 writeSerialPort(const QByteArray &data);
+    void addTab(const SerialPortInfo &info);
+    OutputWidget *currentOutputWidget();
 
 private slots:
-    void onSerialPortOpenClicked();
-    void onSerialPortErrorOccurred(QSerialPort::SerialPortError error);
-    void onReadyRead();
-    void onOutputTextEditInput(const QByteArray &data);
+    void onTabAddClicked();
+    void onTabClicked(const QString &text);
+    void onTabCloseRequested(const QString &text);
+
+    void onShortcutInput(const QByteArray &data);
     void onInputTextEditEnterPressed();
 
     void onNetworkFinished(QNetworkReply *reply);
@@ -48,9 +50,8 @@ private slots:
 private:
     Ui::MainWindow *ui;
 
-    SerialPortSetting *m_serialPortSetting = nullptr;
-    QSerialPort *m_serialPort = nullptr;
-
     QNetworkAccessManager *m_networkManager = nullptr;
+
+    QMap<QString, OutputWidget *> m_mapOutputWidget;
 };
 #endif // MAINWINDOW_H

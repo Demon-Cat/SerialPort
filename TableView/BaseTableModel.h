@@ -12,9 +12,13 @@ public:
     explicit BaseTableModel(QObject *parent = nullptr);
     ~BaseTableModel() override;
 
-    // Header:
-    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
+    void reset(const QList<BaseTableData *> &infos);
+    BaseTableData *info(int row) const;
 
+    // Header:
+    void setHorizontalHeaderLabels(const QStringList &labels);
+
+    QVariant headerData(int section, Qt::Orientation orientation, int role = Qt::DisplayRole) const override;
     bool setHeaderData(int section, Qt::Orientation orientation, const QVariant &value, int role = Qt::EditRole) override;
 
     // Basic functionality:
@@ -38,6 +42,7 @@ public:
     bool removeColumns(int column, int count, const QModelIndex &parent = QModelIndex()) override;
 
 protected:
+    QMap<int, QString> m_headers;
     QList<BaseTableData *> m_infos;
 };
 

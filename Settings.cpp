@@ -1,7 +1,6 @@
 #include "Settings.h"
 #include <QGuiApplication>
-
-Settings *Settings::self = nullptr;
+#include <QFont>
 
 Settings::Settings(QObject *parent) :
     QObject(parent)
@@ -10,15 +9,9 @@ Settings::Settings(QObject *parent) :
     m_settings = new QSettings(filePath, QSettings::IniFormat, this);
 }
 
-void Settings::initialize(QObject *parent)
+Settings &Settings::instance()
 {
-    if (!self) {
-        self = new Settings(parent);
-    }
-}
-
-Settings *Settings::instance()
-{
+    static Settings self;
     return self;
 }
 
@@ -100,4 +93,26 @@ void Settings::saveFlowControl(int value)
 int Settings::flowControl() const
 {
     return m_settings->value("SerialPort/FlowControl").toInt();
+}
+
+void Settings::saveAppFont(const QFont &font)
+{
+    m_settings->setValue("AppFont/family", font.family());
+    m_settings->setValue("AppFont/pointSize", font.pointSize());
+}
+
+QFont Settings::appFont()
+{
+    return QFont(m_settings->value("AppFont/family").toString(), m_settings->value("AppFont/pointSize").toInt());
+}
+
+void Settings::saveSessionFont(const QFont &font)
+{
+    m_settings->setValue("SessionFont/family", font.family());
+    m_settings->setValue("SessionFont/pointSize", font.pointSize());
+}
+
+QFont Settings::sessionFont()
+{
+    return QFont(m_settings->value("SessionFont/family").toString(), m_settings->value("SessionFont/pointSize").toInt());
 }
